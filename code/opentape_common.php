@@ -268,7 +268,7 @@ function scan_songs() {
 
 	require_once('getid3.php');
 	
-	$dir_handle = opendir(constant("SONGS_PATH"));
+	$dir_handle = opendir(get_songs_path());
 	
 	// Initialize getID3 engine
 	$getID3 = new getID3;
@@ -279,16 +279,15 @@ function scan_songs() {
 	
 	// List all the files
     while (false !== ($file = readdir($dir_handle)) ) {
-
 		if ( strcmp($file, ".") && strcmp($file, "..") && !strcasecmp(end(explode(".", $file)), "mp3")) {
 
 			// error_log("Analyzing: " . constant("SONGS_PATH") . $file . " file_exists=" . file_exists(constant("SONGS_PATH") . $file));
 			// error_log("id3_structure: " . print_r($id3_info,1) . "\nID3v2:" . $id3_info['id3v2']['comments']['artist'][0] . " - " . $id3_info['id3v2']['comments']['title'][0]);
 			// error_log("ID3v1:" . $id3_info['id3v1']['artist'] . " - " . $id3_info['id3v1']['title']);
 			
-			if ( !isset($songlist_struct[ base64_encode(rawurlencode($file)) ]) ) {
-		
-				$id3_info = $getID3->analyze(constant("SONGS_PATH") . $file);
+			if ( !isset($songlist_struct[ get_tape_path() ][ base64_encode(rawurlencode($file)) ]) ) {
+
+				$id3_info = $getID3->analyze(get_songs_path() . $file);
 		
 				$song_item = array();
 
@@ -312,7 +311,7 @@ function scan_songs() {
 				// if we are missing tags, set the title to the filename, sans ".mp3"
 				if (!isset($song_item['artist']) && !isset($song_item['title'])) {
 					$song_item['artist'] = "";
-					$song_item['title'] = preg_replace('/\.mp3$/i', '', $id_info['filename']);
+					$song_item['title'] = preg_replace('/\.mp3$/i', '', $id3_info['filename']);
 				} elseif (!isset($song_item['artist'])) { // fill in some of the blanks otherwise
 					$song_item['artist'] = "Unknown artist";
 				} elseif (!isset($song_item['title'])) {
@@ -322,8 +321,8 @@ function scan_songs() {
 				$song_item['filename'] = $id3_info['filename'];
 				$song_item['playtime_seconds'] = $id3_info['playtime_seconds'];
 				$song_item['playtime_string'] = $id3_info['playtime_string'];
-				$song_item['mtime'] = filemtime(constant("SONGS_PATH") . $file);
-				$song_item['size'] = filesize(constant("SONGS_PATH") . $file);
+				$song_item['mtime'] = filemtime(get_songs_path() . $file);
+				$song_item['size'] = filesize(get_songs_path() . $file);
 				$songlist_new_items[ base64_encode(rawurlencode($id3_info['filename'])) ] = $song_item;
 			
 			}
@@ -334,8 +333,12 @@ function scan_songs() {
     
     // if changed, save it
     if (!empty($songlist_new_items)) {
-    	
-    	$songlist_struct = array_merge($songlist_new_items, $songlist_struct);
+      
+      if (!isset($songlist_struct[ get_tape_path() ])) {
+        $songlist_struct[ get_tape_path() ] = array();
+      }
+      
+    	$songlist_struct[ get_tape_path() ] = array_merge($songlist_new_items, $songlist_struct[ get_tape_path() ]);
     
     	announce_songs($songlist_struct);
     	write_songlist_struct($songlist_struct);
@@ -356,8 +359,8 @@ function rename_song($song_key, $artist, $title) {
 	
 	$songlist_struct = get_songlist_struct();
 	
-	$songlist_struct[$song_key]['opentape_artist'] = $artist;
-	$songlist_struct[$song_key]['opentape_title'] = $title;
+	$songlist_struct[get_tape_path()][$song_key]['opentape_artist'] = $artist;
+	$songlist_struct[get_tape_path()][$song_key]['opentape_title'] = $title;
 	
 	return write_songlist_struct($songlist_struct);
 	
@@ -375,11 +378,12 @@ function reorder_songs($args) {
 	$songlist_struct_new = array();
 	foreach ($args as $pos => $row) { 
 		
-		$songlist_struct_new[$row] = $songlist_struct[$row];
+		$songlist_struct_new[$row] = $songlist_struct[ get_tape_path() ][$row];
 
 	}
+  $songlist_struct[ get_tape_path() ] = $songlist_struct_new;
 
-	return write_songlist_struct($songlist_struct_new);
+	return write_songlist_struct($songlist_struct);
 
 }
 
@@ -393,7 +397,7 @@ function delete_song($song_key) {
 	
 	$songlist_struct = get_songlist_struct();
 	
-	if (unlink(constant("SONGS_PATH") . $songlist_struct[$song_key]['filename'])) {
+	if (unlink(get_songs_path() . $songlist_struct[ get_tape_path() ][$song_key]['filename'])) {
 	
 		unset($songlist_struct[$song_key]);
 	
@@ -411,7 +415,7 @@ function get_total_runtime_seconds() {
 	$songlist_struct = get_songlist_struct();
 	
 	$total_secs = 0;
-	foreach ($songlist_struct as $pos => $row) { 
+	foreach ($songlist_struct[ get_tape_path() ] as $pos => $row) { 
 		$total_secs += $row['playtime_seconds'];
 	}
 	
@@ -476,11 +480,13 @@ function get_songlist_struct() {
 function write_songlist_struct($songlist_struct) {
 
 	// before we write, lets verify that all the files in here are really working files, that they exist at least...
-	foreach ($songlist_struct as $pos => $row) { 
-		if (! is_file(constant("SONGS_PATH") . $row['filename']) ) {
-			error_log($row['filename'] . " is not accessible, removing it from the songlist");
-			unset($songlist_struct[$pos]);
-		}
+	foreach ($songlist_struct as $tape => $songs) {
+  	foreach ($songs as $pos => $row) {
+  		if (! is_file(get_songs_path() . $row['filename']) ) {
+  			error_log($row['filename'] . " is not accessible, removing it from the songlist");
+  			unset($songlist_struct[$tape][$pos]);
+  		}
+  	}
 	}
 	
 	$songlist_struct_data = '<?php $songlist_struct_data = "' . base64_encode(serialize($songlist_struct)) . '"; ?>';
@@ -688,7 +694,7 @@ function announce_songs($songlist_struct) {
 	$prefs_struct = get_opentape_prefs();
 
 	$json = new Services_JSON(SERVICES_JSON_LOOSE_TYPE);	
-	$version_struct = $json->encode($songlist_struct);
+	$version_struct = $json->encode($songlist_struct[get_tape_path()]);
 
 	$data = http_build_query(
 			array(
@@ -779,5 +785,15 @@ function do_post_request($url, $data, $optional_headers = null) {
 	
 }
 
+function get_songs_path() {
+  $path = constant('SONGS_PATH').get_tape_path().'/';
+  if (!file_exists($path)) {
+    mkdir($path);
+  }
+  return $path;
+}
 
+function get_tape_path() {
+  return isset($_GET['tape']) && !empty($_GET['tape']) ? $_GET['tape'] : 'default';
+}
 ?>

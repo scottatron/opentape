@@ -47,9 +47,9 @@ $root->appendChild($location);
 $tracklist = $doc->createElement('trackList');
 $root->appendChild($tracklist);
 
-foreach ($songlist_struct as $pos => $row) { 
+foreach ($songlist_struct[ get_tape_path() ] as $pos => $row) { 
 
-	if (! is_file( constant("SONGS_PATH") . $row['filename']) ) {
+	if (! is_file( get_songs_path() . $row['filename']) ) {
 		unset($songlist_struct[$pos]);
 		continue;
 	}
@@ -58,7 +58,7 @@ foreach ($songlist_struct as $pos => $row) {
 	$tracklist->appendChild($trackitem);
 	
 	$location = $doc->createElement('location');
-	$location->appendChild( $doc->createTextNode( get_base_url() . constant("SONGS_PATH") . rawurlencode($row['filename']) ));
+	$location->appendChild( $doc->createTextNode( get_base_url() . get_songs_path() . rawurlencode($row['filename']) ));
 	$trackitem->appendChild($location);
 
 	$meta = $doc->createElement('meta');

@@ -14,7 +14,7 @@
 	} elseif (isset($_FILES['file']) && preg_match('/mp3$/i', basename($_FILES['file']['name'])) ) {
 		// In PHP versions earlier than 4.1.0, $HTTP_POST_FILES should be used instead
 		// of $_FILES.
-		$upload_dir = constant("SONGS_PATH");
+		$upload_dir = get_songs_path();
 		$upload_file = $upload_dir . basename($_FILES['file']['name']);
 		$upload_success;
 		if (move_uploaded_file($_FILES['file']['tmp_name'], $upload_file)) {
@@ -94,8 +94,8 @@
                     <p><strong>Drag &amp; drop</strong> to change the order of your mixtape, it will save automatically.</p>
                     <ul class="sortie">
 <?php
-    foreach ($songlist_struct as $pos => $row) { 
-        	if (! is_file( constant("SONGS_PATH") . $row['filename']) ) {
+    foreach ($songlist_struct[ get_tape_path() ] as $pos => $row) { 
+        	if (! is_file( get_songs_path() . $row['filename']) ) {
 				unset($songlist_struct[$pos]);
 				continue;
 			}

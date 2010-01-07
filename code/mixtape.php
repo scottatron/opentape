@@ -1,12 +1,11 @@
 <?php
-	
 	require_once("opentape_common.php");
 
 	check_cookie();
 	
 	$songlist_struct = scan_songs();
 	$songlist_struct_original = $songlist_struct;
-	$songlist_hash= md5(serialize($songlist_struct));
+	$songlist_hash= md5(serialize($songlist_struct[ get_tape_path() ]));
 
 	$prefs_struct = get_opentape_prefs();
 
@@ -66,10 +65,10 @@
 <?php
 		
 		$i = 0;
-        foreach ($songlist_struct as $pos => $row) { 
+        foreach ($songlist_struct[ get_tape_path() ] as $pos => $row) { 
         
-        	if (! is_file( constant("SONGS_PATH") . $row['filename']) ) {
-				unset($songlist_struct[$pos]);
+        	if (! is_file( get_songs_path() . $row['filename']) ) {
+				unset($songlist_struct[ get_tape_path() ][$pos]);
 				continue;
 			}
 
@@ -86,7 +85,7 @@
 			</div>
 
 			<?php if (isset($prefs_struct['display_mp3']) && $prefs_struct['display_mp3']==1) { ?>
-			<a class="mp3" href="<?php echo $REL_PATH . constant("SONGS_PATH") . rawurlencode($row['filename']); ?>" target="_blank">MP3</a>
+			<a class="mp3" href="<?php echo $REL_PATH . get_songs_path() . rawurlencode($row['filename']); ?>" target="_blank">MP3</a>
 			<?php } else { ?>
 			&nbsp;
 			<?php } ?>
@@ -118,7 +117,7 @@
 		var openPlaylist=new Array();
 		openPlaylist.push(<?php
 			$list_str = "";
-			foreach ($songlist_struct as $pos => $row) { 
+			foreach ($songlist_struct[ get_tape_path() ] as $pos => $row) { 
 				$list_str .= "'" . preg_replace('/=/', '', $pos) . "',";				
 			}
 			$list_str = preg_replace('/,$/','',$list_str);
